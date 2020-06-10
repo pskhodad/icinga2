@@ -5,6 +5,7 @@
 
 #include "base/i2-base.hpp"
 #include "base/object.hpp"
+#include "base/shared.hpp"
 #include <boost/range/iterator.hpp>
 #include <string>
 #include <iosfwd>
@@ -36,11 +37,11 @@ public:
 
 	typedef std::string::size_type SizeType;
 
-	String() = default;
+	String();
 	String(const char *data);
 	String(std::string data);
 	String(String::SizeType n, char c);
-	String(const String& other);
+	String(const String& other) = default;
 	String(String&& other);
 
 #ifndef _MSC_VER
@@ -49,10 +50,10 @@ public:
 
 	template<typename InputIterator>
 	String(InputIterator begin, InputIterator end)
-		: m_Data(begin, end)
+		: m_Data(Shared<std::string>::Make(begin, end))
 	{ }
 
-	String& operator=(const String& rhs);
+	String& operator=(const String& rhs) = default;
 	String& operator=(String&& rhs);
 	String& operator=(Value&& rhs);
 	String& operator=(const std::string& rhs);
@@ -115,7 +116,8 @@ public:
 	template<typename InputIterator>
 	void insert(Iterator p, InputIterator first, InputIterator last)
 	{
-		m_Data.insert(p, first, last);
+		CoW();
+		m_Data->insert(p, first, last);
 	}
 
 	Iterator Begin();
@@ -132,7 +134,9 @@ public:
 	static Object::Ptr GetPrototype();
 
 private:
-	std::string m_Data;
+	void CoW();
+
+	Shared<std::string>::Ptr m_Data;
 };
 
 std::ostream& operator<<(std::ostream& stream, const String& str);

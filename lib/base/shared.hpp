@@ -92,6 +92,11 @@ public:
 		return *this;
 	}
 
+	inline uint_fast64_t GetReferences()
+	{
+		return m_References.load();
+	}
+
 private:
 	Atomic<uint_fast64_t> m_References;
 };
