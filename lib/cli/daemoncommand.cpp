@@ -8,6 +8,7 @@
 #include "config/configcompilercontext.hpp"
 #include "config/configitembuilder.hpp"
 #include "base/atomic.hpp"
+#include "base/benchmark.hpp"
 #include "base/defer.hpp"
 #include "base/logger.hpp"
 #include "base/application.hpp"
@@ -277,11 +278,20 @@ int RunWorker(const std::vector<std::string>& configs, bool closeConsoleLog = fa
 		WorkQueue upq(25000, Configuration::Concurrency);
 		upq.SetName("DaemonCommand::Run");
 
+		BenchmarkSummary sum;
+		BenchmarkStopWatch sw;
+
+		sw.Start();
+
 		// activate config only after daemonization: it starts threads and that is not compatible with fork()
 		if (!ConfigItem::ActivateItems(upq, newItems, false, false, true)) {
 			Log(LogCritical, "cli", "Error activating configuration.");
 			return EXIT_FAILURE;
 		}
+
+		sw.Stop(sum);
+
+		Log(LogInformation, "cli") << "Activated configuration objects within " << sum.GetSeconds() << "s";
 	}
 
 	/* Create the internal API object storage. Do this here too with setups without API. */

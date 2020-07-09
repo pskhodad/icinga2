@@ -1,6 +1,7 @@
 /* Icinga 2 | (c) 2012 Icinga GmbH | GPLv2+ */
 
 #include "cli/daemonutility.hpp"
+#include "base/benchmark.hpp"
 #include "base/utility.hpp"
 #include "base/logger.hpp"
 #include "base/application.hpp"
@@ -230,18 +231,41 @@ bool DaemonUtility::LoadConfigFiles(const std::vector<std::string>& configs,
 {
 	ActivationScope ascope;
 
-	if (!DaemonUtility::ValidateConfigFiles(configs, objectsFile)) {
-		ConfigCompilerContext::GetInstance()->CancelObjectsFile();
-		return false;
+	{
+		BenchmarkSummary sum;
+		BenchmarkStopWatch sw;
+
+		sw.Start();
+
+		if (!DaemonUtility::ValidateConfigFiles(configs, objectsFile)) {
+			ConfigCompilerContext::GetInstance()->CancelObjectsFile();
+			return false;
+		}
+
+		sw.Stop(sum);
+
+		Log(LogInformation, "cli") << "Compiled configuration files within " << sum.GetSeconds() << "s";
 	}
 
-	WorkQueue upq(25000, Configuration::Concurrency);
-	upq.SetName("DaemonUtility::LoadConfigFiles");
-	bool result = ConfigItem::CommitItems(ascope.GetContext(), upq, newItems);
+	{
+		WorkQueue upq(25000, Configuration::Concurrency);
+		upq.SetName("DaemonUtility::LoadConfigFiles");
 
-	if (!result) {
-		ConfigCompilerContext::GetInstance()->CancelObjectsFile();
-		return false;
+		BenchmarkSummary sum;
+		BenchmarkStopWatch sw;
+
+		sw.Start();
+
+		bool result = ConfigItem::CommitItems(ascope.GetContext(), upq, newItems);
+
+		sw.Stop(sum);
+
+		if (!result) {
+			ConfigCompilerContext::GetInstance()->CancelObjectsFile();
+			return false;
+		}
+
+		Log(LogInformation, "cli") << "Committed configuration items within " << sum.GetSeconds() << "s";
 	}
 
 	ConfigCompilerContext::GetInstance()->FinishObjectsFile();
